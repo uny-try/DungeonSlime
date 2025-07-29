@@ -37,6 +37,21 @@ public class Game1 : Core
     // The sound effect to play when the slime eats a bat.
     private SoundEffect _collectSoundEffect;
 
+    // The background theme song
+    private Song _themeSong;
+
+    // The SpriteFont Description used to draw text.
+    private SpriteFont _font;
+
+    // Tracks the players score.
+    private int _score;
+
+    // Defines the position to draw the score text at.
+    private Vector2 _scoreTextPosition;
+
+    // Defines the origin used when drawing the score text.
+    private Vector2 _scoreTextOrigin;
+
     public Game1() : base("Dungeon Slime", 1280, 720, false)
     {
 
@@ -65,6 +80,17 @@ public class Game1 : Core
 
         // Assign the initial random velocity to the bat.
         AssignRandomBatVelocity();
+
+        // Start playing the background music.
+        Audio.PlaySong(_themeSong);
+
+        // Set the position of the score text to align to the left edge of the
+        // room bounds, and to vertically be at the center of the first tile.
+        _scoreTextPosition = new Vector2(_roomBounds.Left, _tilemap.TileHeight * 0.5f);
+
+        // Set the origin of the text so it is left-centered.
+        float scoreTextYOrigin = _font.MeasureString("Score").Y * 0.5f;
+        _scoreTextOrigin = new Vector2(0, scoreTextYOrigin);
     }
 
     protected override void LoadContent()
@@ -87,29 +113,17 @@ public class Game1 : Core
         // Load the collect sound effect
         _collectSoundEffect = Content.Load<SoundEffect>("audio/collect");
 
-        // Load the background theme music
-        Song theme = Content.Load<Song>("audio/theme");
+        // Load the background theme music.
+        _themeSong = Content.Load<Song>("audio/theme");
 
-        // Ensure media player is not already playing on device, if so, stop it
-        if (MediaPlayer.State == MediaState.Playing)
-        {
-            MediaPlayer.Stop();
-        }
-
-        // Play the background theme music.
-        MediaPlayer.Play(theme);
-
-        // Set the theme music to repeat.
-        MediaPlayer.IsRepeating = true;
+        // Load the font
+        _font = Content.Load<SpriteFont>("fonts/04B_30");
 
         base.LoadContent();
     }
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
-            Exit();
-
         // Update the animated sprites
         _slime.Update(gameTime);
         _bat.Update(gameTime);
@@ -117,14 +131,6 @@ public class Game1 : Core
         CheckKeyboardInput();
 
         CheckGamePadInput();
-
-        // Create a bounding rectangle for the screen.
-        Rectangle screenBounds = new Rectangle(
-            0,
-            0,
-            GraphicsDevice.PresentationParameters.BackBufferWidth,
-            GraphicsDevice.PresentationParameters.BackBufferHeight
-        );
 
         // Creating a bounding circle for the slime
         Circle slimeBounds = new Circle(
@@ -198,8 +204,8 @@ public class Game1 : Core
         {
             _batVelocity = Vector2.Reflect(_batVelocity, normal);
 
-            // Play the bounce sound effect
-            _bounceSoundEffect.Play();
+            // Play the bounce sound effect.
+            Audio.PlaySoundEffect(_bounceSoundEffect);
         }
 
         _batPosition = newBatPosition;
@@ -217,8 +223,11 @@ public class Game1 : Core
             // Assign a new random velocity to the bat
             AssignRandomBatVelocity();
 
-            // Play the collect sound effect
-            _collectSoundEffect.Play();
+            // Play the collect sound effect.
+            Audio.PlaySoundEffect(_collectSoundEffect);
+
+            // Increase the player's score.
+            _score += 100;
         }
 
         base.Update(gameTime);
@@ -269,6 +278,26 @@ public class Game1 : Core
         if (Input.Keyboard.IsKeyDown(Keys.D) || Input.Keyboard.IsKeyDown(Keys.Right))
         {
             _slimePosition.X += speed;
+        }
+
+        // If the M key is pressed, toggle mute state for audio.
+        if (Input.Keyboard.WasKeyJustPressed(Keys.M))
+        {
+            Audio.ToggleMute();
+        }
+
+        // If the + button is pressed, increase the volume.
+        if (Input.Keyboard.WasKeyJustPressed(Keys.OemPlus))
+        {
+            Audio.SongVolume += 0.1f;
+            Audio.SoundEffectVolume += 0.1f;
+        }
+
+        // If the - button was pressed, decrease the volume.
+        if (Input.Keyboard.WasKeyJustPressed(Keys.OemMinus))
+        {
+            Audio.SongVolume -= 0.1f;
+            Audio.SoundEffectVolume -= 0.1f;
         }
     }
 
@@ -340,6 +369,20 @@ public class Game1 : Core
 
         // Draw the bat sprite.
         _bat.Draw(SpriteBatch, _batPosition);
+
+        // Draw the score
+        SpriteBatch.DrawString(
+            _font,              // spriteFont
+            $"Score: {_score}", // text
+            _scoreTextPosition, // position
+            Color.White,        // color
+            0.0f,               // rotation
+            _scoreTextOrigin,   // origin
+            1.0f,               // scale
+            SpriteEffects.None, // effects
+            0.0f                // layerDepth
+        );
+
 
         // Always end the sprite batch when finished.
         SpriteBatch.End();
